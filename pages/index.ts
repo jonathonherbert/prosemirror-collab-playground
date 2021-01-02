@@ -19,8 +19,9 @@ import {
 } from "prosemirror-collab";
 import {
   COLLAB_ACTION,
-  createCollabCursorPlugin,
+  createSelectionCollabPlugin,
   actionSelectionsChanged,
+  getSelectionVersion,
 } from "../src/ts";
 
 const getEditorTemplate = (id: number) => `
@@ -51,7 +52,7 @@ type StepsPayload = NonNullable<ReturnType<typeof sendableSteps>>;
 type LocalStep = { step: Step; clientID: string };
 type SelectionMap = Map<
   string,
-  { selection: Selection | undefined; userName: string }
+  { selection: Selection | undefined; userName: string, version: number }
 >;
 class CollabServer {
   private version: number = 0;
@@ -77,9 +78,10 @@ class CollabServer {
   public addSelection(
     selection: Selection,
     clientID: string,
-    userName: string
+    userName: string,
+    version: number,
   ) {
-    this.selections.set(clientID, { userName, selection });
+    this.selections.set(clientID, { userName, selection, version });
   }
 
   public getState(
@@ -132,7 +134,8 @@ class EditorConnection {
 
   private addSelection(selection: Selection) {
     this.lastSentSelection = this.state.selection;
-    this.server.addSelection(selection, this.clientID, this.userName);
+    const version = getSelectionVersion(this.state)
+    this.server.addSelection(selection, this.clientID, this.userName, version);
   }
 
   private startPolling() {
@@ -153,6 +156,7 @@ class EditorConnection {
           clientID,
           userName,
           selection,
+          version
         })
       );
       tr.setMeta(COLLAB_ACTION, actionSelectionsChanged(selectionSpecs));
@@ -191,11 +195,10 @@ const createEditors = (noOfEditors: number, server: CollabServer) =>
             }),
             collabPlugin,
             historyPlugin,
-            createCollabCursorPlugin(clientID),
+            createSelectionCollabPlugin(clientID),
           ],
         }),
       });
-      collabPlugin.getState(view.state);
 
       const connection = new EditorConnection(
         view,

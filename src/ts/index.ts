@@ -1,5 +1,11 @@
 import { Node } from "prosemirror-model";
-import { Plugin, Selection, TextSelection } from "prosemirror-state";
+import {
+  EditorState,
+  Plugin,
+  PluginKey,
+  Selection,
+  TextSelection,
+} from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import "../css/index.scss";
 
@@ -8,17 +14,21 @@ interface PluginState {
   // Do we need to store this in the plugin? Possibly not;
   // and we must maintain them alongside decorations, which
   // is an opportunity for us to come out of sync.
-  selections: UserSelectionChange[];
+  selections: Map<ClientID, UserSelectionChange>;
   // We keep track of all the clientIDs to ensure we generate
   // a distinct color for each of them.
   clientIDs: Set<ClientID>;
   decorations: DecorationSet;
+  // We maintain a selection version to allow clients to avoid
+  // redundant or misleading updates.
+  version: number;
 }
 
 interface UserSelectionChange {
   selection: Selection | undefined;
   clientID: string;
   userName: string;
+  version: number;
 }
 
 type SELECTION_CHANGED_ACTION = "SELECTION_CHANGED_ACTION";
@@ -30,17 +40,27 @@ export const actionSelectionsChanged = (payload: UserSelectionChange[]) => ({
 
 export const COLLAB_ACTION = "COLLAB_ACTION";
 
-export const createCollabCursorPlugin = (clientID: string) => {
-  const plugin: Plugin<PluginState> = new Plugin<PluginState>({
+const pluginKey = new PluginKey("selection-collab");
+export const getSelectionVersion = (state: EditorState) =>
+  pluginKey.getState(state).version;
+
+export const createSelectionCollabPlugin = (clientID: string) => {
+  const plugin: Plugin<PluginState> = new Plugin({
+    key: pluginKey,
     state: {
       init() {
         return {
-          selections: [],
+          selections: new Map(),
           clientIDs: new Set(),
           decorations: new DecorationSet(),
+          version: 0,
         };
       },
       apply(tr, pluginState, _oldState, newState) {
+        const version =
+          _oldState.selection !== newState.selection
+            ? pluginState.version + 1
+            : pluginState.version;
         const action = tr.getMeta(COLLAB_ACTION);
         const mappedDecos = pluginState.decorations.map(
           tr.mapping,
@@ -49,6 +69,7 @@ export const createCollabCursorPlugin = (clientID: string) => {
 
         const newPluginState = {
           ...pluginState,
+          version,
           decorations: mappedDecos,
         };
         if (!action) {
@@ -58,7 +79,7 @@ export const createCollabCursorPlugin = (clientID: string) => {
         const specs = action.payload as UserSelectionChange[];
 
         return specs
-          .filter((spec) => spec.clientID !== clientID)
+          .filter(shouldApplyIncomingSelection(clientID, pluginState))
           .reduce((localPluginState, spec) => {
             return getStateForNewUserSelection(
               newState.doc,
@@ -78,6 +99,20 @@ export const createCollabCursorPlugin = (clientID: string) => {
   return plugin;
 };
 
+const shouldApplyIncomingSelection = (clientID: string, state: PluginState) => (
+  selectionChanges: UserSelectionChange
+) => {
+  const isRemoteClientID = selectionChanges.clientID !== clientID;
+  const currentVersion =
+    state.selections.get(selectionChanges.clientID)?.version || -1;
+  const incomingVersionIsFresh = currentVersion < selectionChanges.version;
+  if (!incomingVersionIsFresh)
+    console.log(
+      `${clientID}: ${selectionChanges.version} not fresher than locally held version ${currentVersion}`
+    );
+  return isRemoteClientID && incomingVersionIsFresh;
+};
+
 const getStateForNewUserSelection = (
   doc: Node,
   oldState: PluginState,
@@ -87,9 +122,7 @@ const getStateForNewUserSelection = (
     console.log(`Selection not yet supported`);
   }
   // Any previous selection by the incoming clientID will now be invalid
-  let newSels = oldState.selections.filter(
-    (_) => _.clientID !== selection.clientID
-  );
+  let newSels = new Map(oldState.selections).set(selection.clientID, selection);
   let newDecSet = oldState.decorations.remove(
     oldState.decorations.find(
       undefined,
@@ -101,6 +134,7 @@ const getStateForNewUserSelection = (
   if (!selection.selection) {
     // There's nothing to add.
     return {
+      ...oldState,
       decorations: newDecSet,
       selections: newSels,
       clientIDs: oldState.clientIDs,
@@ -118,8 +152,9 @@ const getStateForNewUserSelection = (
   newDecSet = newDecSet.add(doc, decorations);
 
   return {
+    ...oldState,
     decorations: newDecSet,
-    selections: newSels.concat(selection),
+    selections: newSels,
     clientIDs: newClientIDs,
   };
 };
