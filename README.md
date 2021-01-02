@@ -1,6 +1,8 @@
 ## prosemirror-collab playground
 
-A place to experiment with prosemirror-collab. At the moment, the demo page shows a few editors communicating via a central authority, which is currently, but not necessarily, client-based. A cursor plugin shows the 'remote' users' selections.
+A place to experiment with prosemirror-collab. At the moment, the demo page shows a few editors communicating via a central authority, which is currently, but not necessarily, client-based. 
+
+A collab-selection plugin shows the 'remote' users' selections. Although we don't need to maintain a history of edits (the selection does not need to be rebased through changes), the plugin stores a 'version' of the selection to ensure that consumers only need respond to fresh changes.
 
 I have questions:
 
@@ -9,7 +11,6 @@ I have questions:
 
 Also todos:
 
-- The selection need a version, too, to avoid dictating incorrect selection states; in addition, at the moment, every user's selection is written into the plugin state when one changes, which is inefficient and resolved by only returning selection updates as they're needed. This is spiked in the plugin state but the bug is still not resolved.
 - Handle caret stacking so multiple carets at the same position aren't hidden
 - CSS fanciness to only show usernames when necessary
 

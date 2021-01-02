@@ -21,7 +21,7 @@ interface PluginState {
   clientIDs: Set<ClientID>;
   decorations: DecorationSet;
   // We maintain a selection version to allow clients to avoid
-  // redundant or misleading updates.
+  // updating in response to stale updates.
   version: number;
 }
 
@@ -146,7 +146,6 @@ const getStateForNewUserSelection = (
 
   const newClientIDs = oldState.clientIDs.add(selection.clientID);
   const decorations = getDecosForSelection(
-    doc,
     selection.userName,
     selection.clientID,
     selection.selection,
@@ -163,7 +162,6 @@ const getStateForNewUserSelection = (
 };
 
 const getDecosForSelection = (
-  doc: Node,
   userName: string,
   clientID: ClientID,
   { head, from, to, empty }: Selection,
