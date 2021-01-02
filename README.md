@@ -2,6 +2,8 @@
 
 A place to experiment with prosemirror-collab. At the moment, the demo page shows a few editors communicating via a central authority, which is currently, but not necessarily, client-based. A cursor plugin shows the 'remote' users' selections.
 
+<img width="831" alt="Screenshot 2021-01-02 at 12 24 22" src="https://user-images.githubusercontent.com/7767575/103457265-98d92c00-4cf5-11eb-8bec-ba2e85d011ab.png">
+
 I have questions:
 
 - should the selection state be managed by a separate service? This appears to be the approach taken by the [NYT](https://open.nytimes.com/we-built-collaborative-editing-for-our-newsrooms-cms-here-s-how-415618a3ec49), as the cursor has different requirements and constraints (it doesn't need to be persisted; it does need to be cleaned up when the corresponding editor quits)
