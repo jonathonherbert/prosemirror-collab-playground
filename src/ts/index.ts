@@ -187,11 +187,11 @@ const getCursorDeco = (
 ): Decoration => {
   const getDOMNode = () => {
     const containerEl = document.createElement("span");
-    containerEl.classList.add("CollabCursor__cursor-widget-container");
+    containerEl.classList.add("SelectionCollab__caret-widget-container");
     containerEl.style.boxShadow = `0px 2px 0 1px ${color}`;
 
     const userNameEl = document.createElement("span");
-    userNameEl.classList.add("CollabCursor__cursor-widget-user-name");
+    userNameEl.classList.add("SelectionCollab__caret-widget-user-name");
     userNameEl.style.backgroundColor = color;
     userNameEl.innerText = userName;
     containerEl.appendChild(userNameEl);
@@ -211,7 +211,7 @@ const getSelectionDeco = (
     from,
     to,
     {
-      class: "CollabCursor__selection-widget",
+      class: "SelectionCollab__selection-widget",
       style: `background-color: ${color}`,
     },
     {
