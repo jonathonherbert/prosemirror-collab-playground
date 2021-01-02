@@ -52,7 +52,7 @@ type StepsPayload = NonNullable<ReturnType<typeof sendableSteps>>;
 type LocalStep = { step: Step; clientID: string };
 type SelectionMap = Map<
   string,
-  { selection: Selection | undefined; userName: string, version: number }
+  { selection: Selection | undefined; userName: string; version: number }
 >;
 class CollabServer {
   private version: number = 0;
@@ -79,7 +79,7 @@ class CollabServer {
     selection: Selection,
     clientID: string,
     userName: string,
-    version: number,
+    version: number
   ) {
     this.selections.set(clientID, { userName, selection, version });
   }
@@ -134,11 +134,11 @@ class EditorConnection {
 
   private addSelection(selection: Selection) {
     this.lastSentSelection = this.state.selection;
-    const version = getSelectionVersion(this.state)
+    const version = getSelectionVersion(this.state);
     this.server.addSelection(selection, this.clientID, this.userName, version);
   }
 
-  private startPolling() {
+  public startPolling() {
     setInterval(() => {
       const version = getVersion(this.state);
       const state = server.getState(version);
@@ -152,14 +152,15 @@ class EditorConnection {
         steps.map((s) => s.clientID)
       );
       const selectionSpecs = [...selections.entries()].map(
-        ([clientID, { userName, selection }]) => ({
+        ([clientID, { userName, selection, version }]) => ({
           clientID,
           userName,
           selection,
-          version
+          version,
         })
       );
       tr.setMeta(COLLAB_ACTION, actionSelectionsChanged(selectionSpecs));
+      console.log({ tr, selectionSpecs });
       this.dispatchTransaction(tr);
     }, 500);
   }
@@ -175,7 +176,7 @@ const createEditors = (noOfEditors: number, server: CollabServer) =>
       const clientID = index.toString();
       const collabPlugin = collab({ version: initialVersion, clientID });
       const editorNode = document.createElement("div");
-      editorNode.classList.add("Editor__container")
+      editorNode.classList.add("Editor__container");
       editorNode.innerHTML = getEditorTemplate(editorNo);
       appEl?.appendChild(editorNode);
 
@@ -184,23 +185,26 @@ const createEditors = (noOfEditors: number, server: CollabServer) =>
       if (contentElement && contentElement.parentElement) {
         contentElement.parentElement.removeChild(contentElement);
       }
-      const view = new EditorView(document.getElementById(`editor-${editorNo}`)!, {
-        state: EditorState.create({
-          doc,
-          plugins: [
-            ...exampleSetup({
-              schema: mySchema,
-              history: false,
-              menuContent: buildMenuItems(mySchema).fullMenu,
-            }),
-            collabPlugin,
-            historyPlugin,
-            createSelectionCollabPlugin(clientID),
-          ],
-        }),
-      });
+      const view = new EditorView(
+        document.getElementById(`editor-${editorNo}`)!,
+        {
+          state: EditorState.create({
+            doc,
+            plugins: [
+              ...exampleSetup({
+                schema: mySchema,
+                history: false,
+                menuContent: buildMenuItems(mySchema).fullMenu,
+              }),
+              collabPlugin,
+              historyPlugin,
+              createSelectionCollabPlugin(clientID),
+            ],
+          }),
+        }
+      );
 
-      const connection = new EditorConnection(
+      (window as any)[`connection${editorNo}`] = new EditorConnection(
         view,
         server,
         clientID,
@@ -210,10 +214,11 @@ const createEditors = (noOfEditors: number, server: CollabServer) =>
     });
 
 const server = new CollabServer();
-const editors = createEditors(4, server);
+const editors = createEditors(2, server);
 const doc = editors[0].state.doc;
 server.init(doc);
 
 // Handy debugging tools
+(window as any).server = server;
 (window as any).editors = editors;
 (window as any).ProseMirrorDevTools.applyDevTools(editors[0], { EditorState });

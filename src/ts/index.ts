@@ -5,6 +5,7 @@ import {
   PluginKey,
   Selection,
   TextSelection,
+  Transaction,
 } from "prosemirror-state";
 import { Decoration, DecorationSet } from "prosemirror-view";
 import "../css/index.scss";
@@ -45,7 +46,7 @@ export const getSelectionVersion = (state: EditorState) =>
   pluginKey.getState(state).version;
 
 export const createSelectionCollabPlugin = (clientID: string) => {
-  const plugin: Plugin<PluginState> = new Plugin({
+  const plugin: Plugin<PluginState> = new Plugin<PluginState>({
     key: pluginKey,
     state: {
       init() {
@@ -56,12 +57,15 @@ export const createSelectionCollabPlugin = (clientID: string) => {
           version: 0,
         };
       },
-      apply(tr, pluginState, _oldState, newState) {
-        const version =
-          _oldState.selection !== newState.selection
-            ? pluginState.version + 1
-            : pluginState.version;
+      apply(tr, pluginState, oldState, newState) {
         const action = tr.getMeta(COLLAB_ACTION);
+        const version = getNewSelectionVersion(
+          tr,
+          pluginState,
+          oldState,
+          newState
+        );
+
         const mappedDecos = pluginState.decorations.map(
           tr.mapping,
           newState.doc
@@ -77,9 +81,8 @@ export const createSelectionCollabPlugin = (clientID: string) => {
         }
 
         const specs = action.payload as UserSelectionChange[];
-
         return specs
-          .filter(shouldApplyIncomingSelection(clientID, pluginState))
+          .filter(shouldApplyIncomingSelection(clientID, newPluginState))
           .reduce((localPluginState, spec) => {
             return getStateForNewUserSelection(
               newState.doc,
@@ -102,15 +105,15 @@ export const createSelectionCollabPlugin = (clientID: string) => {
 const shouldApplyIncomingSelection = (clientID: string, state: PluginState) => (
   selectionChanges: UserSelectionChange
 ) => {
-  const isRemoteClientID = selectionChanges.clientID !== clientID;
+  const isOwnClientID = selectionChanges.clientID === clientID;
+  if (isOwnClientID) {
+    return false;
+  }
   const currentVersion =
-    state.selections.get(selectionChanges.clientID)?.version || -1;
+    state.selections.get(selectionChanges.clientID)?.version ?? -1;
   const incomingVersionIsFresh = currentVersion < selectionChanges.version;
-  if (!incomingVersionIsFresh)
-    console.log(
-      `${clientID}: ${selectionChanges.version} not fresher than locally held version ${currentVersion}`
-    );
-  return isRemoteClientID && incomingVersionIsFresh;
+
+  return incomingVersionIsFresh;
 };
 
 const getStateForNewUserSelection = (
@@ -228,4 +231,19 @@ const notEmpty = <TValue>(
 const selectColor = (index: number, isBackground = false) => {
   const hue = index * 137.508; // use golden angle approximation
   return `hsl(${hue},50%,${isBackground ? 90 : 50}%)`;
+};
+
+const getNewSelectionVersion = (
+  tr: Transaction,
+  pluginState: PluginState,
+  oldState: EditorState,
+  newState: EditorState
+) => {
+  const selectionChanged = oldState.selection !== newState.selection;
+  // Do not increment a version in response to a change in the
+  // remote cursor state – it shouldn't affect anything locally.
+  const shouldIgnore = !!tr.getMeta(COLLAB_ACTION);
+  return selectionChanged && !shouldIgnore
+    ? pluginState.version + 1
+    : pluginState.version;
 };
