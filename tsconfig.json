@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "module": "ES2015",
+    "noImplicitAny": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+    "removeComments": true,
+    "preserveConstEnums": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "es6",
+    "esModuleInterop": true,
+    "jsx": "react",
+    "lib": ["dom", "esnext"]
+  },
+  "exclude": ["dist"]
+}

@@ -1,0 +1,16 @@
+.CollabCursor__cursor-widget-container {
+  height: calc(1em);
+  display: inline-block;
+  position: relative;
+}
+
+.CollabCursor__cursor-widget-user-name {
+  position: absolute;
+  padding: 2px;
+  bottom: calc(1em);
+  left: -1px;
+  font-size: 11px;
+  font-weight: bold;
+  white-space: nowrap;
+  color: white;
+}
