@@ -214,7 +214,7 @@ const createEditors = (noOfEditors: number, server: CollabServer) =>
     });
 
 const server = new CollabServer();
-const editors = createEditors(2, server);
+const editors = createEditors(4, server);
 const doc = editors[0].state.doc;
 server.init(doc);
 
