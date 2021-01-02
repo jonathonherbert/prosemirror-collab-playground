@@ -10,6 +10,7 @@ I have questions:
 
 Also todos:
 
+- There are synchronisation problems between cursor and edit states during editing that eventually resolve, fix 'em.
 - Handle caret stacking so multiple carets at the same position aren't hidden
 - CSS fanciness to only show usernames when necessary
 
